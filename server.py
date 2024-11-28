@@ -2,6 +2,8 @@ import socket
 import threading
 import os
 import argparse
+import tkinter as tk
+from tkinter import messagebox
 
 # 
 # Ahmet Emre Eser - 28/11/24
@@ -18,6 +20,7 @@ def handle_client(conn, addr):
         with lock:
             if client_name in clients:
                 conn.send(b"ERROR: Name already in use.\n")
+                log_message(f"ERROR: Name already in use.\n")
                 dup_name = True
                 conn.close()
                 ic(clients)
@@ -27,6 +30,7 @@ def handle_client(conn, addr):
                 ic(clients)
                 conn.send(b"Welcome!\n")
         print(f"{client_name} connected from {addr}.")
+        log_message(f"{client_name} connected from {addr}.")
 
         while True:
             data = conn.recv(1024).decode().strip()
@@ -44,9 +48,11 @@ def handle_client(conn, addr):
                 handle_list(conn)
             else:
                 conn.send(b"ERROR: Invalid command.\n")
+                log_message(f"ERROR: Invalid command.\n")
 
     except Exception as e:
         print(f"Error handling client {addr}: {e}")
+        log_message(f"Error handling client {addr}: {e}")
 
     finally:
         with lock:
@@ -56,19 +62,24 @@ def handle_client(conn, addr):
             conn.close()
             if not dup_name:
                 print(f"{client_name} disconnected.")
+                log_message(f"{client_name} disconnected.")
             else:
                 print(f"Duplicate {client_name} disconnected.")
+                log_message(f"Duplicate {client_name} disconnected.")
 
 def handle_upload(conn, client_name, args):
     if len(args) != 1:
         conn.send(b"ERROR: Invalid arguments for UPLOAD.\n")
+        log_message(f"ERROR: Invalid arguments for UPLOAD.\n")
         return
 
     filename = args[0]
     full_path = os.path.join(STORAGE_PATH, f"{client_name}_{filename}")
 
+    send_msg = b""
+
     if os.path.exists(full_path): # checks only files, not directories
-        conn.send(b"File will be overwritten.\n")
+        send_msg += (b"File will be overwritten.\n")
 
     with open(full_path, 'wb') as f:
         while True:
@@ -80,12 +91,14 @@ def handle_upload(conn, client_name, args):
 
     with lock:
         files[full_path] = client_name
-    conn.send(b"File uploaded successfully.\n")
+    conn.send(send_msg + b"File uploaded successfully.\n")
     print(f"{client_name} uploaded {filename}.")
+    log_message(f"{client_name} uploaded {filename}.")
 
 def handle_download(conn, client_name, args):
     if len(args) != 2:
         conn.send(b"ERROR: Invalid arguments for DOWNLOAD.\n")
+        log_message(f"ERROR: Invalid arguments for DOWNLOAD.\n")
         return
 
     ic(args)
@@ -95,6 +108,7 @@ def handle_download(conn, client_name, args):
 
     if not os.path.exists(full_path):
         conn.send(b"ERROR: File not found.\n")
+        log_message(f"ERROR: File not found.\n")
         return
 
     with open(full_path, 'rb') as f:
@@ -102,14 +116,16 @@ def handle_download(conn, client_name, args):
             data = f.read(1024)
             if not data:
                 break
-            conn.send(data)
-    conn.send(b"EOF")
-    conn.send(b"File downloaded successfully.\n")
+            conn.sendall(data)
+    conn.sendall(b"EOF")
+    conn.sendall(b"File downloaded successfully.\n")
     print(f"{client_name} downloaded {filename} from {owner}.")
+    log_message(f"{client_name} downloaded {filename} from {owner}.")
 
 def handle_delete(conn, client_name, args):
     if len(args) != 1:
         conn.send(b"ERROR: Invalid arguments for DELETE.\n")
+        log_message(f"ERROR: Invalid arguments for DELETE.\n")
         return
 
     filename = args[0]
@@ -123,8 +139,10 @@ def handle_delete(conn, client_name, args):
             ic(files)
             conn.send(b"File deleted successfully.\n")
             print(f"{client_name} deleted {filename}.")
+            log_message(f"{client_name} deleted {filename}.")
         else:
             conn.send(b"ERROR: File not found or permission denied.\n")
+            log_message(f"ERROR: File not found or permission denied.\n")
 
 # used in recovering the file list after the server is restarted
 def recreate_files_dict(storage_path):
@@ -147,6 +165,7 @@ def start_server():
     server_socket.bind((HOST, PORT))
     server_socket.listen(MAX_CONNECTIONS)
     print(f"Server listening on {HOST}:{PORT}")
+    log_message(f"Server listening on {HOST}:{PORT}")
 
     while True:
         conn, addr = server_socket.accept()
@@ -157,46 +176,85 @@ PORT = None
 STORAGE_PATH = None
 MAX_CONNECTIONS = None
 DEBUG = False
+status_box = None
+
+def log_message(message):
+    global status_box
+    status_box.config(state=tk.NORMAL)
+    status_box.insert(tk.END, f"{message}\n")
+    status_box.yview(tk.END)  # Automatically scroll to the bottom
+    status_box.config(state=tk.DISABLED)
+
+def start_server_thread(host, port, storage_path, max_connections):
+    global HOST, PORT, STORAGE_PATH, MAX_CONNECTIONS
+    HOST = host
+    PORT = int(port)
+    STORAGE_PATH = storage_path
+    MAX_CONNECTIONS = int(max_connections)
+
+    if not os.path.exists(STORAGE_PATH):
+        os.makedirs(STORAGE_PATH)
+    
+    def server_thread():
+        start_server()
+
+    threading.Thread(target=server_thread).start()
+
+def start_server_gui():
+    def start_server_button():
+        host = host_entry.get()
+        port = port_entry.get()
+        storage_path = storage_path_entry.get()
+        max_connections = max_conn_entry.get()
+
+        start_server_thread(host, port, storage_path, max_connections)
+        messagebox.showinfo("Server", "Server started!")
+
+    root = tk.Tk()
+    root.title("Server Configuration")
+
+    tk.Label(root, text="Host:").grid(row=0)
+    tk.Label(root, text="Port:").grid(row=1)
+    tk.Label(root, text="Storage Path:").grid(row=2)
+    tk.Label(root, text="Max Connections:").grid(row=3)
+
+    host_entry = tk.Entry(root)
+    port_entry = tk.Entry(root)
+    storage_path_entry = tk.Entry(root)
+    max_conn_entry = tk.Entry(root)
+
+    host_entry.grid(row=0, column=1)
+    port_entry.grid(row=1, column=1)
+    storage_path_entry.grid(row=2, column=1)
+    max_conn_entry.grid(row=3, column=1)
+
+    tk.Button(root, text="Start Server", command=start_server_button).grid(row=4, column=1)
+
+    # Status Display Box
+    status_box_label = tk.Label(root, text="Server Status:")
+    status_box_label.grid(row=5, column=0, columnspan=2)
+    
+    global status_box
+    status_box = tk.Text(root, height=10, width=50, wrap=tk.WORD)
+    status_box.grid(row=6, column=0, columnspan=2)
+    status_box.config(state=tk.DISABLED)  # Set to read-only
+
+    root.mainloop()
 
 if __name__ == "__main__":
-    # Configuration
-    startup_logo = """
- ______      _       _______  _____     _____                               
-|  ____|    | |     |__   __||  __ \\   / ____|                              
-| |__  __ _ | | __ ___ | |   | |__) | | (___    ___  _ __ __   __ ___  _ __ 
-|  __|/ _` || |/ // _ \\| |   |  ___/   \\___ \\  / _ \\| '__|\\ \\ / // _ \\| '__|
-| |  | (_| ||   <|  __/| |   | |       ____) ||  __/| |    \\ V /|  __/| |   
-|_|   \\__,_||_|\\_\\\\___||_|   |_|      |_____/  \\___||_|     \\_/  \\___||_|    by Emre Eser
-                                                                             
-"""
-
-    print(startup_logo)
-
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--ip", type=str, default="127.0.0.1", help="Server's ip address")
-    parser.add_argument("--port", type=int, default="8888", help="Servers port number")
-    parser.add_argument("--storage", type=str, default="./server_storage", help="Server's storage folder path")
-    parser.add_argument("--maxconn", type=int, default=5, help="Maximum number of tcp connections")
-    parser.add_argument("--debug", action='store_true', help="Print debug info")
-    args = parser.parse_args()
-    HOST, PORT, STORAGE_PATH, DEBUG, MAX_CONNECTIONS = args.ip, args.port, args.storage, args.debug, args.maxconn
-
-    # debug print routine
-    if DEBUG:
+    parse = argparse.ArgumentParser()
+    parse.add_argument("--debug", action='store_true')
+    args = parse.parse_args()
+    DEBUG = args.debug
+    if not DEBUG:
+        def ic(*args):
+            return
+    else:
         try:
             from icecream import ic
         except ImportError:
-            print("Looks like icecream is not installed on your machine, using print() for debugging instead.")
+            print("Icecream could not be imported, using print() for debugging instead.")
             def ic(*args):
                 print(args)
 
-    else:
-        # removes all debug print statements
-        def ic(*args):
-            return
-
-    # Ensure the storage directory exists
-    if not os.path.exists(STORAGE_PATH):
-        os.makedirs(STORAGE_PATH)
-
-    start_server()
+    start_server_gui()
