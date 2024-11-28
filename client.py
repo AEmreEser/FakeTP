@@ -27,6 +27,11 @@ def connect_to_server(client_name, host, port):
     return conn
 
 def upload_file(conn, filename):
+    if conn == None:
+        print("You have to connect to the server first.")
+        log_message("You have to connect to the server first.")
+        return
+
     if not os.path.exists(filename):
         print("File does not exist.")
         log_message("File does not exist.")
@@ -42,6 +47,10 @@ def upload_file(conn, filename):
     log_message(rec)
 
 def download_file(conn, owner, filename, save_path):
+    if conn == None:
+        print("You have to connect to the server first.")
+        log_message("You have to connect to the server first.")
+        return
     conn.send(f"DOWNLOAD {owner} {filename}".encode())
     response = conn.recv(1024).decode()
     if response.startswith("ERROR"):
@@ -81,12 +90,22 @@ def download_file(conn, owner, filename, save_path):
 
 
 def delete_file(conn, filename):
+    if conn == None:
+        print("You have to connect to the server first.")
+        log_message("You have to connect to the server first.")
+        return
+
     conn.send(f"DELETE {filename}".encode())
     rec = conn.recv(1024).decode()
     print(rec)
     log_message(rec)
 
 def list_files(conn):
+    if conn == None:
+        print("You have to connect to the server first.")
+        log_message("You have to connect to the server first.")
+        return
+
     try:
         conn.send(b"LIST")
         rec = conn.recv(1024).decode()
@@ -169,16 +188,15 @@ def start_client_gui():
     savepath_entry.grid(row=3, column=1)
     tk.Button(root, text="Browse", command=browse_savepath).grid(row=3, column=2)
 
-    # Create buttons for actions
-    tk.Button(root, text="Connect", command=connect).grid(row=4, column=0, columnspan=3)
-    tk.Button(root, text="Upload", command=upload).grid(row=5, column=0, columnspan=3)
-    tk.Button(root, text="Download", command=download).grid(row=6, column=0, columnspan=3)
-    tk.Button(root, text="Delete", command=delete).grid(row=7, column=0, columnspan=3)
-    tk.Button(root, text="List Files", command=list_files_func).grid(row=8, column=0, columnspan=3)
+    tk.Button(root, text="Connect", command=connect).grid(row=4, column=0, columnspan=1)
+    tk.Button(root, text="Upload", command=upload).grid(row=4, column=1, columnspan=1)
+    tk.Button(root, text="Download", command=download).grid(row=4, column=2, columnspan=1)
+    tk.Button(root, text="Delete", command=delete).grid(row=4, column=3, columnspan=1)
+    tk.Button(root, text="List Files", command=list_files_func).grid(row=4, column=4, columnspan=1)
 
     global status_box
     status_box = tk.Text(root, height=10, width=50, wrap=tk.WORD)
-    status_box.grid(row=9, column=0, columnspan=2)
+    status_box.grid(row=0, column=2, rowspan=4, padx=10, pady=5, columnspan=3)
     status_box.config(state=tk.DISABLED)  # Set to read-only
 
     root.mainloop()

@@ -271,12 +271,12 @@ def start_server_gui():
     tk.Button(root, text="Start Server", command=start_server_button).grid(row=4, column=1)
 
     # Status Display Box
-    status_box_label = tk.Label(root, text="Server Status:")
-    status_box_label.grid(row=5, column=0, columnspan=2)
+    status_box_label = tk.Label(root, text="Server Status")
+    status_box_label.grid(row=4, column=3, columnspan=2)
     
     global status_box
     status_box = tk.Text(root, height=10, width=50, wrap=tk.WORD)
-    status_box.grid(row=6, column=0, columnspan=2)
+    status_box.grid(row=0, column=3, padx=10, pady=5, rowspan=4, columnspan=2)
     status_box.config(state=tk.DISABLED)  # Set to read-only
 
     root.mainloop()
