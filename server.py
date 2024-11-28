@@ -166,15 +166,15 @@ if __name__ == "__main__":
 | |__  __ _ | | __ ___ | |   | |__) | | (___    ___  _ __ __   __ ___  _ __ 
 |  __|/ _` || |/ // _ \\| |   |  ___/   \\___ \\  / _ \\| '__|\\ \\ / // _ \\| '__|
 | |  | (_| ||   <|  __/| |   | |       ____) ||  __/| |    \\ V /|  __/| |   
-|_|   \\__,_||_|\\_\\\\___||_|   |_|      |_____/  \\___||_|     \\_/  \\___||_|   
+|_|   \\__,_||_|\\_\\\\___||_|   |_|      |_____/  \\___||_|     \\_/  \\___||_|    by Emre Eser
                                                                              
 """
 
     print(startup_logo)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ip", type=str, default="127.0.0.1")
-    parser.add_argument("--port", type=int, default="8888")
+    parser.add_argument("--ip", type=str, default="127.0.0.1", help="Server's ip address")
+    parser.add_argument("--port", type=int, default="8888", help="Servers port number")
     parser.add_argument("--storage", type=str, default="./server_storage", help="Server's storage folder path")
     parser.add_argument("--maxconn", type=int, default=5, help="Maximum number of tcp connections")
     parser.add_argument("--debug", action='store_true', help="Print debug info")

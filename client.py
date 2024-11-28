@@ -91,11 +91,11 @@ ______      _        _____ ______
     print(startup_logo)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ip", type=str, default="127.0.0.1")
-    parser.add_argument("--port", type=int, default="8888")
-    parser.add_argument("--name", type=str)
-    parser.add_argument("--savepath", type=str)
-    parser.add_argument("--debug", action='store_true')
+    parser.add_argument("--ip", type=str, default="127.0.0.1", help="ip of the server")
+    parser.add_argument("--port", type=int, default="8888", help="port of the server app")
+    parser.add_argument("--name", type=str, help="Username of the client")
+    parser.add_argument("--savepath", type=str, help="Clients downloads folder")
+    parser.add_argument("--debug", action='store_true', help="enable debug mode")
     args = parser.parse_args()
 
     PORT = args.port
