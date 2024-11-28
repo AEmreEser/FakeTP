@@ -1,88 +1,190 @@
-import socket as sk
-from threading import Thread
-from argparse import ArgumentParser
-import tkinter as tk
+import socket
+import threading
 import os
+import argparse
 
+# 
+# Ahmet Emre Eser - 28/11/24
 #
-# Ahmet Emre Eser - CS408 Fall24-25 Term Project
-#
 
-# Tied to the "--debug"/"-d" cmd line argument
-DEBUG=False
-# Default values - overridden unless DEBUG argument is provided
-HOST="127.0.0.1"
-PORT="8080"
-STOR=os.getcwd() + "/server-storage"
+clients = {}  # Dictionary to store client names and their connections
+files = {}    # Dictionary to store filenames and their owners
+lock = threading.Lock()
 
-config_gui = tk.Tk()
-config_gui.title("Server Monitor - Config Page")
-config_gui.rowconfigure([0,1,2,3,4,5], minsize=10, weight=1)
-config_gui.columnconfigure([0,1,2,3,4,5], minsize=10, weight=1)
+def handle_client(conn, addr):
+    dup_name = False
+    try:
+        client_name = conn.recv(1024).decode()
+        with lock:
+            if client_name in clients:
+                conn.send(b"ERROR: Name already in use.\n")
+                dup_name = True
+                conn.close()
+                ic(clients)
+                return
+            else:
+                clients[client_name] = conn
+                ic(clients)
+                conn.send(b"Welcome!\n")
+        print(f"{client_name} connected from {addr}.")
 
-sv_input_frame = tk.Frame(master=config_gui, relief=tk.RIDGE)
-sv_input_frame.grid(row=0, column=0, padx=0, pady=10, sticky="nsew")
+        while True:
+            data = conn.recv(1024).decode().strip()
+            if not data:
+                break
+            command, *args = data.split()
 
-ip_in_label = tk.Label(master=sv_input_frame, text="Server IP address:")
-ip_in_ent   = tk.Entry(master=sv_input_frame, width=40)
-ip_in_label.grid(row=0, column=0, sticky="ew")
-ip_in_ent.grid(row=0, column=1, padx=5, pady=5, sticky="ew")
+            if command == 'UPLOAD':
+                handle_upload(conn, client_name, args)
+            elif command == 'DOWNLOAD':
+                handle_download(conn, client_name, args)
+            elif command == 'DELETE':
+                handle_delete(conn, client_name, args)
+            elif command == 'LIST':
+                handle_list(conn)
+            else:
+                conn.send(b"ERROR: Invalid command.\n")
 
-port_in_label = tk.Label(master=sv_input_frame, text="Server port:")
-port_in_ent   = tk.Entry(master=sv_input_frame, width=40)
-port_in_label.grid(row=1, column=0, sticky="ew")
-port_in_ent.grid(row=1, column=1, padx=5, pady=5, sticky="ew")
+    except Exception as e:
+        print(f"Error handling client {addr}: {e}")
 
-storage_path_label = tk.Label(master=sv_input_frame, text="Storage path: ")
-storage_path_ent = tk.Entry(master=sv_input_frame, width=40)
-storage_path_label.grid(row=2, column=0, sticky="ew")
-storage_path_ent.grid(row=2, column=1, padx=5, pady=5, sticky="ew")
+    finally:
+        with lock:
+            if not dup_name: # bug fix 1 - should not delete the client if the connection is duplicate
+                del clients[client_name]
 
-status_label = tk.Text(master=config_gui, wrap='word', width=40, height=2, padx=5, pady=5, state=tk.DISABLED)
-status_label.grid(row=4, column=0, padx=10, pady=10, sticky="ew")
+            conn.close()
+            if not dup_name:
+                print(f"{client_name} disconnected.")
+            else:
+                print(f"Duplicate {client_name} disconnected.")
 
-# only works with label widgets
-def update_label(lbl, s):
-    lbl.config(state=tk.NORMAL)
-    lbl.delete(1.0, tk.END)
-    lbl.insert(tk.END, s)
-    lbl.config(state=tk.DISABLED)
+def handle_upload(conn, client_name, args):
+    if len(args) != 1:
+        conn.send(b"ERROR: Invalid arguments for UPLOAD.\n")
+        return
 
-# this is the actual connection loop
-def sv_main():
-    global status_label
-    port = port_in_ent.get()
-    host = ip_in_ent.get()
-    stor = storage_path_ent.get() # TODO: we need to use the os's file picker window for this!!!
-    if (port == '' or port == None or not port.isnumeric() or host == '' or host == None or host.count('.') != 3 or stor == '' or stor == None or not os.path.isdir(stor)):
-        print("Bad input - cannot start server") # TODO: need to display this to the user!!!
-        update_label(status_label, "Bad input - cannot start server")
-        return #with nothing...
-    else:
-        global PORT, HOST, STOR
-        (PORT, HOST, STOR) = (port, host, stor)
-        print(f"Starting server with {HOST}:{PORT}:{STOR}")
-        update_label(status_label, f"Starting server with {HOST}:{PORT}:{STOR}")
-        config_gui.destroy()
+    filename = args[0]
+    full_path = os.path.join(STORAGE_PATH, f"{client_name}_{filename}")
 
-btn_start_sv = tk.Button(master=config_gui, text="Start", relief=tk.RAISED, borderwidth=2, command=sv_main)
-btn_start_sv.grid(row=3, column=0, padx=5, pady=5)
+    if os.path.exists(full_path): # checks only files, not directories
+        conn.send(b"File will be overwritten.\n")
 
-def sv_config():
-    global config_gui
-    config_gui.mainloop()
+    with open(full_path, 'wb') as f:
+        while True:
+            data = conn.recv(1024)
+            if data.endswith(b"EOF"):
+                f.write(data[:-3])
+                break
+            f.write(data)
 
-#
-# main:
-if __name__=='__main__':
-    parser = ArgumentParser()
-    parser.add_argument('-d', '--debug', action="store_true", help="Turns on debug mode")
+    with lock:
+        files[full_path] = client_name
+    conn.send(b"File uploaded successfully.\n")
+    print(f"{client_name} uploaded {filename}.")
+
+def handle_download(conn, client_name, args):
+    if len(args) != 2:
+        conn.send(b"ERROR: Invalid arguments for DOWNLOAD.\n")
+        return
+
+    ic(args)
+
+    owner, filename = args
+    full_path = os.path.join(STORAGE_PATH, f"{owner}_{filename}")
+
+    if not os.path.exists(full_path):
+        conn.send(b"ERROR: File not found.\n")
+        return
+
+    with open(full_path, 'rb') as f:
+        while True:
+            data = f.read(1024)
+            if not data:
+                break
+            conn.send(data)
+    conn.send(b"EOF")
+    conn.send(b"File downloaded successfully.\n")
+    print(f"{client_name} downloaded {filename} from {owner}.")
+
+def handle_delete(conn, client_name, args):
+    if len(args) != 1:
+        conn.send(b"ERROR: Invalid arguments for DELETE.\n")
+        return
+
+    filename = args[0]
+    full_path = os.path.join(STORAGE_PATH, f"{client_name}_{filename}")
+    ic(full_path)
+
+    with lock:
+        if full_path in files and files[full_path] == client_name:
+            os.remove(full_path)
+            del files[full_path]
+            ic(files)
+            conn.send(b"File deleted successfully.\n")
+            print(f"{client_name} deleted {filename}.")
+        else:
+            conn.send(b"ERROR: File not found or permission denied.\n")
+
+# used in recovering the file list after the server is restarted
+def recreate_files_dict(storage_path):
+    global files
+    for file in os.listdir(storage_path):
+        full_path = os.path.join(storage_path, file)
+        if os.path.exists(full_path):
+            owner, orig_file = file.split('_', 1)
+            files[full_path] = owner
+    ic(files)
+
+def handle_list(conn):
+    with lock:
+        file_list = "\n".join([f"{owner}: {os.path.basename(file)}" for file, owner in files.items()])
+    conn.send(file_list.encode() + b"\n")
+
+def start_server():
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    recreate_files_dict(STORAGE_PATH)
+    server_socket.bind((HOST, PORT))
+    server_socket.listen(MAX_CONNECTIONS)
+    print(f"Server listening on {HOST}:{PORT}")
+
+    while True:
+        conn, addr = server_socket.accept()
+        threading.Thread(target=handle_client, args=(conn, addr)).start()
+
+HOST = None
+PORT = None
+STORAGE_PATH = None
+MAX_CONNECTIONS = None
+DEBUG = False
+
+if __name__ == "__main__":
+    # Configuration
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--ip", type=str, default="127.0.0.1")
+    parser.add_argument("--port", type=int, default="8888")
+    parser.add_argument("--storage", type=str, default="./server_storage", help="Server's storage folder path")
+    parser.add_argument("--maxconn", type=int, default=5, help="Maximum number of tcp connections")
+    parser.add_argument("--debug", action='store_true', help="Print debug info")
     args = parser.parse_args()
-    DEBUG=args.debug
+    HOST, PORT, STORAGE_PATH, DEBUG, MAX_CONNECTIONS = args.ip, args.port, args.storage, args.debug, args.maxconn
 
-    if DEBUG: # initialize the fields with default values so that I don't have to type them everytime!!
-        port_in_ent.insert(tk.END, PORT)
-        ip_in_ent.insert(tk.END, HOST)
-        storage_path_ent.insert(tk.END, STOR)
+    # debug print routine
+    if DEBUG:
+        try:
+            from icecream import ic
+        except ImportError:
+            print("Looks like icecream is not installed on your machine, using print() for debugging instead.")
+            def ic(*args):
+                print(args)
 
-    sv_config()
+    else:
+        # removes all debug print statements
+        def ic(*args):
+            return
+
+    # Ensure the storage directory exists
+    if not os.path.exists(STORAGE_PATH):
+        os.makedirs(STORAGE_PATH)
+
+    start_server()
