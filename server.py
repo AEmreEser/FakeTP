@@ -196,7 +196,7 @@ def recreate_files_dict(storage_path):
 
 def handle_list(conn):
     with lock:
-        file_list = "\n".join([f"{owner}: {os.path.basename(file)}" for file, owner in files.items()])
+        file_list = "\n".join([f"{owner}: {(os.path.basename(file)).split('_', 1)[1]}" for file, owner in files.items()])
     conn.send(file_list.encode() + b"\n")
 
 def start_server():
@@ -217,6 +217,7 @@ STORAGE_PATH = None
 MAX_CONNECTIONS = None
 DEBUG = False
 status_box = None
+server_started = False
 
 def log_message(message):
     global status_box
@@ -226,6 +227,12 @@ def log_message(message):
     status_box.config(state=tk.DISABLED)
 
 def start_server_thread(host, port, storage_path, max_connections):
+    global server_started
+    if server_started:
+        return
+    else:
+        server_started = True
+
     global HOST, PORT, STORAGE_PATH, MAX_CONNECTIONS
     HOST = host
     PORT = int(port)
@@ -242,16 +249,21 @@ def start_server_thread(host, port, storage_path, max_connections):
 
 def start_server_gui():
     def start_server_button():
-        host = host_entry.get()
-        port = port_entry.get()
-        storage_path = storage_path_entry.get()
-        max_connections = max_conn_entry.get()
+        global server_started
+        if not server_started:
+            host = host_entry.get()
+            port = port_entry.get()
+            storage_path = storage_path_entry.get()
+            max_connections = max_conn_entry.get()
 
-        start_server_thread(host, port, storage_path, max_connections)
-        messagebox.showinfo("Server", "Server started!")
+            start_server_thread(host, port, storage_path, max_connections)
+            messagebox.showinfo("Server", "Server started!")
+        else:
+            log_message("Server is already running.")
+
 
     root = tk.Tk()
-    root.title("Server Configuration")
+    root.title("File Transfer Server")
 
     tk.Label(root, text="Host:").grid(row=0)
     tk.Label(root, text="Port:").grid(row=1)

@@ -51,6 +51,10 @@ def download_file(conn, owner, filename, save_path):
         print("You have to connect to the server first.")
         log_message("You have to connect to the server first.")
         return
+
+    if not os.path.exists(save_path):
+        os.mkdir(save_path)
+    
     conn.send(f"DOWNLOAD {owner} {filename}".encode())
     response = conn.recv(1024).decode()
     if response.startswith("ERROR"):
@@ -80,8 +84,8 @@ def download_file(conn, owner, filename, save_path):
         log_message("Error with connection. Possible reasons: 1)The client quit 2)You were inactive for some time")
         return
     except OSError as ose:
-        print(f"Error opening {filename}. Possible reasons: 1)File does not exist 2)You made a typo)")
-        log_message(f"Error opening {filename}. Possible reasons: 1)File does not exist 2)You made a typo)")
+        print(f"Error finding {filename}. Possible reasons: 1)File does not exist 2)You made a typo)")
+        log_message(f"Error finding {filename}. Possible reasons: 1)File does not exist 2)You made a typo)")
         return
     except Exception as e:
         print("Errors encountered")
@@ -148,10 +152,12 @@ def start_client_gui():
 
     def download():
         global conn
+        nonlocal savepath_entry
+        ic(savepath_entry)
         filename = simpledialog.askstring("Filename", "Enter the filename to download:")
         owner = simpledialog.askstring("Owner", "Enter the owner of the file:")
         if filename:
-            download_file(conn, owner, filename, savepath.get())
+            download_file(conn, owner, filename, savepath_entry.get())
 
     def delete():
         global conn
