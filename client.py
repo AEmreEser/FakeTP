@@ -1,18 +1,21 @@
 import socket
 import os
 import argparse
+import tkinter as tk
+from tkinter import messagebox, filedialog, simpledialog # for some reason tkinter cannto find these 
 
 # 
 # Ahmet Emre Eser - 28/11/24
 #
 
-def connect_to_server(client_name):
+def connect_to_server(client_name, host, port):
     # socket.setdefaulttimeout(10.0) # no need after bugfix2
     conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
-        conn.connect((HOST, PORT))
+        conn.connect((host, port))
     except ConnectionRefusedError:
-        print("ERROR: Connection refused, are you sure that the ip and port paraemters provided are correct?")
+        print("ERROR: Connection refused. Are you sure that the ip and port paraemters provided are correct?")
+        log_message("ERROR: Connection refused. Are you sure that the ip and port paraemters provided are correct?")
         exit(1)
     conn.send(client_name.encode())
     response = conn.recv(1024).decode()
@@ -26,6 +29,7 @@ def connect_to_server(client_name):
 def upload_file(conn, filename):
     if not os.path.exists(filename):
         print("File does not exist.")
+        log_message("File does not exist.")
         return
 
     conn.send(f"UPLOAD {os.path.basename(filename)}".encode())
@@ -33,39 +37,16 @@ def upload_file(conn, filename):
         while (data := f.read(1024)):
             conn.send(data)
     conn.send(b"EOF")
-    print(conn.recv(1024).decode())
-
-# def download_file(conn, owner, filename, save_path):
-#     conn.send(f"DOWNLOAD {owner} {filename}".encode())
-#     response = conn.recv(1024).decode()
-#     if response.startswith("ERROR"):
-#         print(response)
-#         return
-
-#     try:
-#         with open(os.path.join(save_path, filename), 'wb') as f:
-#             while True:
-#                 data = conn.recv(1024)
-#                 if data.endswith(b"EOF"):
-#                     f.write(data[:-3])
-#                     break
-#                 f.write(data)
-#         print("File downloaded successfully.")
-#     except TimeoutError as te:
-#         print("Download timed out")
-#         return
-#     except OSError as ose:
-#         print(f"Error opening {filename}. Possible reasons: File does not exist (ie. you made a typo)")
-#         return
-#     except Exception as e:
-#         print("Errors encountered")
-#         return
+    rec = conn.recv(1024).decode()
+    print(rec)
+    log_message(rec)
 
 def download_file(conn, owner, filename, save_path):
     conn.send(f"DOWNLOAD {owner} {filename}".encode())
     response = conn.recv(1024).decode()
     if response.startswith("ERROR"):
         print(response)
+        log_message(response)
         return
     file_size = int(response)
     conn.send(b"ACK") # the actual bytes don't matter, all that matters is that we send smt
@@ -79,68 +60,148 @@ def download_file(conn, owner, filename, save_path):
                     received += len(data)
                     f.write(data)
             print("File downloaded successfully.")
+            log_message("File downloaded successfully.")
             if DEBUG:
                 assert(received == file_size) # caught below, does not crash the client
     except AssertionError as ae:
         print("Received > filesize")
         return
     except BrokenPipeError as ose:
-        print("Error with connection. Possible reasons: The client quit")
+        print("Error with connection. Possible reasons: 1)The client quit 2)You were inactive for some time")
+        log_message("Error with connection. Possible reasons: 1)The client quit 2)You were inactive for some time")
         return
     except OSError as ose:
-        print(f"Error opening {filename}. Possible reasons: File does not exist (ie. you made a typo)")
+        print(f"Error opening {filename}. Possible reasons: 1)File does not exist 2)You made a typo)")
+        log_message(f"Error opening {filename}. Possible reasons: 1)File does not exist 2)You made a typo)")
         return
     except Exception as e:
         print("Errors encountered")
+        log_message("Errors encountered")
         return
 
 
 def delete_file(conn, filename):
     conn.send(f"DELETE {filename}".encode())
-    print(conn.recv(1024).decode())
+    rec = conn.recv(1024).decode()
+    print(rec)
+    log_message(rec)
 
 def list_files(conn):
     try:
         conn.send(b"LIST")
-        print(conn.recv(1024).decode())
+        rec = conn.recv(1024).decode()
+        print(rec)
+        log_message(rec)
     except BrokenPipeError as ose:
         print("Error with connection. Possible reasons: The client quit")
+        log_message("Error with connection. Possible reasons: The client quit")
         return
     except Exception as e:
         print("Unknown error occurred")
+        log_message("Unknown error occurred")
         return
 
 
-PORT = None
-HOST = None
-SAVEPATH = None
+def start_client_gui():
+    def browse_savepath():
+        folder_selected = filedialog.askdirectory()
+        savepath.set(folder_selected)
+
+    def connect():
+        global conn
+        client_name = client_name_entry.get()
+        host = host_entry.get()
+        port = int(port_entry.get())
+        if not client_name or not host or not port:
+            messagebox.showerror("Input Error", "Please provide client name, host, and port.")
+            return
+
+        conn = connect_to_server(client_name, host, port)
+        if conn:
+            # messagebox.showinfo("Connection", f"Connected to {host}:{port}")
+            log_message(f"Connected to {host}:{port}")
+
+    def upload():
+        global conn
+        filename = filedialog.askopenfilename()
+        if filename:
+            upload_file(conn, filename)
+
+    def download():
+        global conn
+        filename = simpledialog.askstring("Filename", "Enter the filename to download:")
+        owner = simpledialog.askstring("Owner", "Enter the owner of the file:")
+        if filename:
+            download_file(conn, owner, filename, savepath.get())
+
+    def delete():
+        global conn
+        filename = simpledialog.askstring("Filename", "Enter the filename to delete:")
+        if filename:
+            delete_file(conn, filename)
+
+    def list_files_func():
+        global conn
+        list_files(conn)
+
+    root = tk.Tk()
+    root.title("File Transfer Client")
+
+    client_name = tk.StringVar()
+    host = tk.StringVar()
+    port = tk.IntVar()
+    savepath = tk.StringVar()
+
+    tk.Label(root, text="Client Name:").grid(row=0, column=0)
+    client_name_entry = tk.Entry(root, textvariable=client_name)
+    client_name_entry.grid(row=0, column=1)
+
+    tk.Label(root, text="Host:").grid(row=1, column=0)
+    host_entry = tk.Entry(root, textvariable=host)
+    host_entry.grid(row=1, column=1)
+
+    tk.Label(root, text="Port:").grid(row=2, column=0)
+    port_entry = tk.Entry(root, textvariable=port)
+    port_entry.grid(row=2, column=1)
+
+    tk.Label(root, text="Save Path:").grid(row=3, column=0)
+    savepath_entry = tk.Entry(root, textvariable=savepath)
+    savepath_entry.grid(row=3, column=1)
+    tk.Button(root, text="Browse", command=browse_savepath).grid(row=3, column=2)
+
+    # Create buttons for actions
+    tk.Button(root, text="Connect", command=connect).grid(row=4, column=0, columnspan=3)
+    tk.Button(root, text="Upload", command=upload).grid(row=5, column=0, columnspan=3)
+    tk.Button(root, text="Download", command=download).grid(row=6, column=0, columnspan=3)
+    tk.Button(root, text="Delete", command=delete).grid(row=7, column=0, columnspan=3)
+    tk.Button(root, text="List Files", command=list_files_func).grid(row=8, column=0, columnspan=3)
+
+    global status_box
+    status_box = tk.Text(root, height=10, width=50, wrap=tk.WORD)
+    status_box.grid(row=9, column=0, columnspan=2)
+    status_box.config(state=tk.DISABLED)  # Set to read-only
+
+    root.mainloop()
+
+
+# PORT = None
+# HOST = None
+# SAVEPATH = None
+conn = None
+status_box = None
+
+def log_message(message):
+    global status_box
+    status_box.config(state=tk.NORMAL)
+    status_box.insert(tk.END, f"{message}\n")
+    status_box.yview(tk.END)  # Automatically scroll to the bottom
+    status_box.config(state=tk.DISABLED)
 
 if __name__ == "__main__":
-    startup_logo = """
-______      _        _____ ______ 
-|  ___|    | |      |_   _|| ___ \\
-| |_  __ _ | | __ ___ | |  | |_/ /
-|  _|/ _` || |/ // _ \\| |  |  __/ 
-| | | (_| ||   <|  __/| |  | |    
-\\_|  \\__,_||_|\\_\\\\___|\\_/  \\_|    by Emre Eser
-
-"""
-
-    print(startup_logo)
-
     parser = argparse.ArgumentParser()
-    parser.add_argument("--ip", type=str, default="127.0.0.1", help="ip of the server")
-    parser.add_argument("--port", type=int, default="8888", help="port of the server app")
-    parser.add_argument("--name", type=str, help="Username of the client")
-    parser.add_argument("--savepath", type=str, help="Clients downloads folder")
     parser.add_argument("--debug", action='store_true', help="enable debug mode")
     args = parser.parse_args()
-
-    PORT = args.port
-    HOST = args.ip
     DEBUG = args.debug
-    client_name = args.name if args.name != None else input("Enter your name: ")
-    SAVEPATH = (args.savepath) if args.savepath else ("./" + client_name + "_" + "downloads")
 
     if DEBUG:
         try:
@@ -153,41 +214,5 @@ ______      _        _____ ______
         # removes all debug print statements
         def ic(*args):
             return
-
-    ic(SAVEPATH)
-
-    conn = connect_to_server(client_name)
-    if not conn:
-        exit()
-
-    if not os.path.exists(SAVEPATH):
-        ic("Savepath does not exist, creating it...")
-        os.makedirs(SAVEPATH)
-
-    while True:
-        command = input(f"{client_name}> ").strip().split()
-        if not command:
-            continue
-
-        if command[0] == 'UPLOAD' and len(command) == 2:
-            upload_file(conn, command[1])
-        elif command[0] == 'DOWNLOAD' and len(command) == 3:
-            download_file(conn, command[1], command[2], SAVEPATH)
-        elif command[0] == 'DELETE' and len(command) == 2:
-            delete_file(conn, command[1])
-        elif command[0] == 'LIST':
-            list_files(conn)
-        elif command[0] == 'QUIT':
-            conn.close()
-            break
-        elif command[0] == 'SHELL' and DEBUG: # executes shell commands -- for ease of testing
-            try:
-                import subprocess # for the SHELL command
-                ret = subprocess.run(" ".join(command[1:]), shell=True, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-                print(ret.stdout)
-            except subprocess.CalledProcessError as error:
-                print(error.stderr)
-            except ImportError:
-                print("Could not import subprocess, try running without --debug")
-        else:
-            print("Invalid command.")
+    
+    start_client_gui()
