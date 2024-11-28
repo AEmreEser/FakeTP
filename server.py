@@ -101,13 +101,38 @@ def handle_upload(conn, client_name, args):
     print(f"{client_name} uploaded {filename}.")
     log_message(f"{client_name} uploaded {filename}.")
 
+# def handle_download(conn, client_name, args):
+#     if len(args) != 2:
+#         conn.send(b"ERROR: Invalid arguments for DOWNLOAD.\n")
+#         log_message(f"ERROR: Invalid arguments for DOWNLOAD.\n")
+#         return
+
+#     ic(args)
+
+#     owner, filename = args
+#     full_path = os.path.join(STORAGE_PATH, f"{owner}_{filename}")
+
+#     if not os.path.exists(full_path):
+#         conn.send(b"ERROR: File not found.\n")
+#         log_message(f"ERROR: File not found.\n")
+#         return
+
+#     with open(full_path, 'rb') as f:
+#         while True:
+#             data = f.read(1024)
+#             if not data:
+#                 break
+#             conn.sendall(data)
+#     conn.sendall(b"EOF")
+#     # conn.sendall(b"File downloaded successfully.\n") # BUG Fix: EOF has to be the absolute last bytes sent!!! There cannot be nothing after it
+#     print(f"{client_name} downloaded {filename} from {owner}.")
+#     log_message(f"{client_name} downloaded {filename} from {owner}.")
+
 def handle_download(conn, client_name, args):
     if len(args) != 2:
-        conn.send(b"ERROR: Invalid arguments for DOWNLOAD.\n")
-        log_message(f"ERROR: Invalid arguments for DOWNLOAD.\n")
+        conn.send(b"ERROR: Invalid number of arguments for DOWNLOAD.\n")
+        log_message(f"ERROR: Invalid number of arguments for DOWNLOAD.\n")
         return
-
-    ic(args)
 
     owner, filename = args
     full_path = os.path.join(STORAGE_PATH, f"{owner}_{filename}")
@@ -116,22 +141,31 @@ def handle_download(conn, client_name, args):
         conn.send(b"ERROR: File not found.\n")
         log_message(f"ERROR: File not found.\n")
         return
-
+    
+    file_size = os.path.getsize(full_path)
+    conn.send(str(file_size).encode())
+    socket.setdefaulttimeout(30.0) # in case the client does not answer
+    try:
+        conn.recv(1024)
+    except TimeoutError:
+        print("ACK timedout")
+        log_message("ACK timedout")
+        return
+    
     with open(full_path, 'rb') as f:
         while True:
             data = f.read(1024)
             if not data:
                 break
-            conn.sendall(data)
-    conn.sendall(b"EOF")
-    # conn.sendall(b"File downloaded successfully.\n") # BUG Fix: EOF has to be the absolute last bytes sent!!! There cannot be nothing after it
+            conn.send(data)
+    # conn.send(b"EOF") # no need now
     print(f"{client_name} downloaded {filename} from {owner}.")
     log_message(f"{client_name} downloaded {filename} from {owner}.")
 
 def handle_delete(conn, client_name, args):
     if len(args) != 1:
-        conn.send(b"ERROR: Invalid arguments for DELETE.\n")
-        log_message(f"ERROR: Invalid arguments for DELETE.\n")
+        conn.send(b"ERROR: Invalid number of arguments for DELETE.\n")
+        log_message(f"ERROR: Invalid number of arguments for DELETE.\n")
         return
 
     filename = args[0]
