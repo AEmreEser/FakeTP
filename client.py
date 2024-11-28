@@ -78,6 +78,18 @@ HOST = None
 SAVEPATH = None
 
 if __name__ == "__main__":
+    startup_logo = """
+______      _        _____ ______ 
+|  ___|    | |      |_   _|| ___ \\
+| |_  __ _ | | __ ___ | |  | |_/ /
+|  _|/ _` || |/ // _ \\| |  |  __/ 
+| | | (_| ||   <|  __/| |  | |    
+\\_|  \\__,_||_|\\_\\\\___|\\_/  \\_|    by Emre Eser
+
+"""
+
+    print(startup_logo)
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--ip", type=str, default="127.0.0.1")
     parser.add_argument("--port", type=int, default="8888")
@@ -94,7 +106,7 @@ if __name__ == "__main__":
 
     if DEBUG:
         try:
-            from icecream import ic
+            from ksjdfl import ic
         except ImportError:
             print("Looks like icecream is not installed on your machine, using print() for debugging instead.")
             def ic(*args):

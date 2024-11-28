@@ -160,6 +160,18 @@ DEBUG = False
 
 if __name__ == "__main__":
     # Configuration
+    startup_logo = """
+ ______      _       _______  _____     _____                               
+|  ____|    | |     |__   __||  __ \\   / ____|                              
+| |__  __ _ | | __ ___ | |   | |__) | | (___    ___  _ __ __   __ ___  _ __ 
+|  __|/ _` || |/ // _ \\| |   |  ___/   \\___ \\  / _ \\| '__|\\ \\ / // _ \\| '__|
+| |  | (_| ||   <|  __/| |   | |       ____) ||  __/| |    \\ V /|  __/| |   
+|_|   \\__,_||_|\\_\\\\___||_|   |_|      |_____/  \\___||_|     \\_/  \\___||_|   
+                                                                             
+"""
+
+    print(startup_logo)
+
     parser = argparse.ArgumentParser()
     parser.add_argument("--ip", type=str, default="127.0.0.1")
     parser.add_argument("--port", type=int, default="8888")
