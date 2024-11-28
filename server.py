@@ -82,6 +82,12 @@ def handle_upload(conn, client_name, args):
         send_msg += (b"File will be overwritten.\n")
 
     with open(full_path, 'wb') as f:
+        # while True:
+        #     data = conn.recv(1024)
+        #     if data.endswith(b"EOF"):
+        #         f.write(data[:-3])
+        #         break
+        #     f.write(data)
         while True:
             data = conn.recv(1024)
             if data.endswith(b"EOF"):
@@ -118,7 +124,7 @@ def handle_download(conn, client_name, args):
                 break
             conn.sendall(data)
     conn.sendall(b"EOF")
-    conn.sendall(b"File downloaded successfully.\n")
+    # conn.sendall(b"File downloaded successfully.\n") # BUG Fix: EOF has to be the absolute last bytes sent!!! There cannot be nothing after it
     print(f"{client_name} downloaded {filename} from {owner}.")
     log_message(f"{client_name} downloaded {filename} from {owner}.")
 
