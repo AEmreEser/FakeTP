@@ -35,24 +35,57 @@ def upload_file(conn, filename):
     conn.send(b"EOF")
     print(conn.recv(1024).decode())
 
+# def download_file(conn, owner, filename, save_path):
+#     conn.send(f"DOWNLOAD {owner} {filename}".encode())
+#     response = conn.recv(1024).decode()
+#     if response.startswith("ERROR"):
+#         print(response)
+#         return
+
+#     try:
+#         with open(os.path.join(save_path, filename), 'wb') as f:
+#             while True:
+#                 data = conn.recv(1024)
+#                 if data.endswith(b"EOF"):
+#                     f.write(data[:-3])
+#                     break
+#                 f.write(data)
+#         print("File downloaded successfully.")
+#     except TimeoutError as te:
+#         print("Download timed out")
+#         return
+#     except OSError as ose:
+#         print(f"Error opening {filename}. Possible reasons: File does not exist (ie. you made a typo)")
+#         return
+#     except Exception as e:
+#         print("Errors encountered")
+#         return
+
 def download_file(conn, owner, filename, save_path):
     conn.send(f"DOWNLOAD {owner} {filename}".encode())
     response = conn.recv(1024).decode()
     if response.startswith("ERROR"):
         print(response)
         return
+    file_size = int(response)
+    conn.send(b"ACK") # the actual bytes don't matter, all that matters is that we send smt
 
+    received = 0
     try:
         with open(os.path.join(save_path, filename), 'wb') as f:
-            while True:
+            while received < file_size:
                 data = conn.recv(1024)
-                if data.endswith(b"EOF"):
-                    f.write(data[:-3])
-                    break
-                f.write(data)
-        print("File downloaded successfully.")
-    except TimeoutError as te:
-        print("Download timed out")
+                if data:
+                    received += len(data)
+                    f.write(data)
+            print("File downloaded successfully.")
+            if DEBUG:
+                assert(received == file_size) # caught below, does not crash the client
+    except AssertionError as ae:
+        print("Received > filesize")
+        return
+    except BrokenPipeError as ose:
+        print("Error with connection. Possible reasons: The client quit")
         return
     except OSError as ose:
         print(f"Error opening {filename}. Possible reasons: File does not exist (ie. you made a typo)")
@@ -110,7 +143,7 @@ ______      _        _____ ______
 
     if DEBUG:
         try:
-            from ksjdfl import ic
+            from icecream import ic
         except ImportError:
             print("Looks like icecream is not installed on your machine, using print() for debugging instead.")
             def ic(*args):
