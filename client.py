@@ -7,7 +7,7 @@ import argparse
 #
 
 def connect_to_server(client_name):
-    socket.setdefaulttimeout(10.0)
+    # socket.setdefaulttimeout(10.0) # no need after bugfix2
     conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         conn.connect((HOST, PORT))

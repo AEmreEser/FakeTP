@@ -104,7 +104,7 @@ def handle_download(conn, client_name, args):
                 break
             conn.send(data)
     conn.send(b"EOF")
-    conn.send(b"File downloaded successfully.\n")
+    # conn.send(b"File downloaded successfully.\n") # BUG FIX 2: EOF has to be the last bytes sent -- nothing should come after it!!!
     print(f"{client_name} downloaded {filename} from {owner}.")
 
 def handle_delete(conn, client_name, args):
