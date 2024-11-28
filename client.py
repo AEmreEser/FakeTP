@@ -7,6 +7,7 @@ import argparse
 #
 
 def connect_to_server(client_name):
+    socket.setdefaulttimeout(10.0)
     conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     try:
         conn.connect((HOST, PORT))
@@ -50,8 +51,11 @@ def download_file(conn, owner, filename, save_path):
                     break
                 f.write(data)
         print("File downloaded successfully.")
+    except TimeoutError as te:
+        print("Download timed out")
+        return
     except OSError as ose:
-        print("Error opening {filename}. Possible reasons: File does not exist (ie. you made a typo)")
+        print(f"Error opening {filename}. Possible reasons: File does not exist (ie. you made a typo)")
         return
     except Exception as e:
         print("Errors encountered")
