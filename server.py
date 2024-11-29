@@ -82,15 +82,10 @@ def handle_upload(conn, client_name, args):
         send_msg += (b"File will be overwritten.\n")
 
     with open(full_path, 'wb') as f:
-        # while True:
-        #     data = conn.recv(1024)
-        #     if data.endswith(b"EOF"):
-        #         f.write(data[:-3])
-        #         break
-        #     f.write(data)
         while True:
             data = conn.recv(1024)
-            if data.endswith(b"EOF"):
+            # if data.endswith(b"EOF"):
+            if data.endswith((chr(26).encode())):
                 f.write(data[:-3])
                 break
             f.write(data)
@@ -100,33 +95,6 @@ def handle_upload(conn, client_name, args):
     conn.send(send_msg + b"File uploaded successfully.\n")
     print(f"{client_name} uploaded {filename}.")
     log_message(f"{client_name} uploaded {filename}.")
-
-# def handle_download(conn, client_name, args):
-#     if len(args) != 2:
-#         conn.send(b"ERROR: Invalid arguments for DOWNLOAD.\n")
-#         log_message(f"ERROR: Invalid arguments for DOWNLOAD.\n")
-#         return
-
-#     ic(args)
-
-#     owner, filename = args
-#     full_path = os.path.join(STORAGE_PATH, f"{owner}_{filename}")
-
-#     if not os.path.exists(full_path):
-#         conn.send(b"ERROR: File not found.\n")
-#         log_message(f"ERROR: File not found.\n")
-#         return
-
-#     with open(full_path, 'rb') as f:
-#         while True:
-#             data = f.read(1024)
-#             if not data:
-#                 break
-#             conn.sendall(data)
-#     conn.sendall(b"EOF")
-#     # conn.sendall(b"File downloaded successfully.\n") # BUG Fix: EOF has to be the absolute last bytes sent!!! There cannot be nothing after it
-#     print(f"{client_name} downloaded {filename} from {owner}.")
-#     log_message(f"{client_name} downloaded {filename} from {owner}.")
 
 def handle_download(conn, client_name, args):
     if len(args) != 2:
@@ -264,31 +232,32 @@ def start_server_gui():
 
     root = tk.Tk()
     root.title("File Transfer Server")
+    root.minsize(675, 200)
 
-    tk.Label(root, text="Host:").grid(row=0)
-    tk.Label(root, text="Port:").grid(row=1)
-    tk.Label(root, text="Storage Path:").grid(row=2)
-    tk.Label(root, text="Max Connections:").grid(row=3)
+    tk.Label(root, text="Host:").grid(row=0, sticky='ENS')
+    tk.Label(root, text="Port:").grid(row=1, sticky='ENS')
+    tk.Label(root, text="Storage Path:").grid(row=2, sticky='ENS')
+    tk.Label(root, text="Max Connections:").grid(row=3, sticky='ENS')
 
     host_entry = tk.Entry(root)
     port_entry = tk.Entry(root)
     storage_path_entry = tk.Entry(root)
     max_conn_entry = tk.Entry(root)
 
-    host_entry.grid(row=0, column=1)
-    port_entry.grid(row=1, column=1)
-    storage_path_entry.grid(row=2, column=1)
-    max_conn_entry.grid(row=3, column=1)
+    host_entry.grid(row=0, column=1, sticky='WNS')
+    port_entry.grid(row=1, column=1, sticky='WNS')
+    storage_path_entry.grid(row=2, column=1, sticky='WNS')
+    max_conn_entry.grid(row=3, column=1, sticky='WNS')
 
-    tk.Button(root, text="Start Server", command=start_server_button).grid(row=4, column=1)
+    tk.Button(root, text="Start Server", command=start_server_button).grid(row=4, column=1, sticky='WNS')
 
     # Status Display Box
     status_box_label = tk.Label(root, text="Server Status")
-    status_box_label.grid(row=4, column=3, columnspan=2)
+    status_box_label.grid(row=4, column=3, columnspan=2, sticky='N')
     
     global status_box
     status_box = tk.Text(root, height=10, width=50, wrap=tk.WORD)
-    status_box.grid(row=0, column=3, padx=10, pady=5, rowspan=4, columnspan=2)
+    status_box.grid(row=0, column=3, padx=10, pady=5, rowspan=4, columnspan=2, sticky='EN')
     status_box.config(state=tk.DISABLED)  # Set to read-only
 
     root.mainloop()

@@ -41,7 +41,9 @@ def upload_file(conn, filename):
     with open(filename, 'rb') as f:
         while (data := f.read(1024)):
             conn.send(data)
-    conn.send(b"EOF")
+    eof = chr(26) # supposedly many systems today don't actually use this EOF character
+    # conn.send(b"EOF")
+    conn.send(eof.encode())
     rec = conn.recv(1024).decode()
     print(rec)
     log_message(rec)
@@ -171,34 +173,35 @@ def start_client_gui():
 
     root = tk.Tk()
     root.title("File Transfer Client")
+    root.minsize(650, 200)
 
     client_name = tk.StringVar()
     host = tk.StringVar()
     port = tk.IntVar()
     savepath = tk.StringVar()
 
-    tk.Label(root, text="Client Name:").grid(row=0, column=0)
+    tk.Label(root, text="Client Name:").grid(row=0, column=0, sticky='ENS')
     client_name_entry = tk.Entry(root, textvariable=client_name)
-    client_name_entry.grid(row=0, column=1)
+    client_name_entry.grid(row=0, column=1, stick='WNS')
 
-    tk.Label(root, text="Host:").grid(row=1, column=0)
+    tk.Label(root, text="Host:").grid(row=1, column=0, sticky='ENS')
     host_entry = tk.Entry(root, textvariable=host)
-    host_entry.grid(row=1, column=1)
+    host_entry.grid(row=1, column=1, stick='WNS')
 
-    tk.Label(root, text="Port:").grid(row=2, column=0)
+    tk.Label(root, text="Port:").grid(row=2, column=0, sticky='ENS')
     port_entry = tk.Entry(root, textvariable=port)
-    port_entry.grid(row=2, column=1)
+    port_entry.grid(row=2, column=1, sticky='WNS')
 
-    tk.Label(root, text="Save Path:").grid(row=3, column=0)
+    tk.Label(root, text="Save Path:").grid(row=3, column=0, stick='ENS')
     savepath_entry = tk.Entry(root, textvariable=savepath)
-    savepath_entry.grid(row=3, column=1)
-    tk.Button(root, text="Browse", command=browse_savepath).grid(row=3, column=2)
+    savepath_entry.grid(row=3, column=1, stick='WNS')
+    tk.Button(root, text="Browse", command=browse_savepath).grid(row=3, column=2, sticky='N')
 
-    tk.Button(root, text="Connect", command=connect).grid(row=4, column=0, columnspan=1)
-    tk.Button(root, text="Upload", command=upload).grid(row=4, column=1, columnspan=1)
-    tk.Button(root, text="Download", command=download).grid(row=4, column=2, columnspan=1)
-    tk.Button(root, text="Delete", command=delete).grid(row=4, column=3, columnspan=1)
-    tk.Button(root, text="List Files", command=list_files_func).grid(row=4, column=4, columnspan=1)
+    tk.Button(root, text="Connect", command=connect).grid(row=4, column=0, columnspan=1, sticky='N')
+    tk.Button(root, text="Upload", command=upload).grid(row=4, column=1, columnspan=1, sticky='N')
+    tk.Button(root, text="Download", command=download).grid(row=4, column=2, columnspan=1, sticky='N')
+    tk.Button(root, text="Delete", command=delete).grid(row=4, column=3, columnspan=1, sticky='N')
+    tk.Button(root, text="List Files", command=list_files_func).grid(row=4, column=4, columnspan=1, sticky='N')
 
     global status_box
     status_box = tk.Text(root, height=10, width=50, wrap=tk.WORD)
