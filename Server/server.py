@@ -223,6 +223,9 @@ def start_server_gui():
             port = port_entry.get()
             storage_path = storage_path_entry.get()
             max_connections = max_conn_entry.get()
+            if host == '' or port == '' or storage_path == '' or max_connections == '':
+                messagebox.showinfo("Server", "You need to fill all of the fields to start the connection")
+                return
 
             start_server_thread(host, port, storage_path, max_connections)
             messagebox.showinfo("Server", "Server started!")
