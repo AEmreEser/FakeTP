@@ -8,6 +8,8 @@
 ```
 FTP-like transfer application. Course project for cs408 Computer Networks @ Sabanci Uni.
 
+**Check the *"gui"* branch for graphical user interface version**
+
 ### Commands List
 - LIST: lists uploaded files
 - UPLOAD \<filename>: uploading files
